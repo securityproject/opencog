@@ -1,9 +1,9 @@
 ;; Load PLN rule implication direct evaluation
 
 (use-modules (opencog))
-(use-modules (opencog atom-types))
+(use-modules (opencog nlp))
 (use-modules (opencog pln))
-(use-modules (opencog rule-engine))
+(use-modules (opencog ure))
 ; FIXME: Doesn't return anything when confidence is low, don't use for now
 ;(load-from-path "opencog/pln/rules/implication-direct-evaluation.scm")
 

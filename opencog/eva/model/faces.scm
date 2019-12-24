@@ -5,11 +5,8 @@
 ; XXX most of face-tracking is now in self-model.scm
 ; Perhaps this file is not needed any more? XXX FIXME
 ;
-(add-to-load-path "/usr/local/share/opencog/scm")
-
 (use-modules (opencog))
 (use-modules (opencog exec))
-(use-modules (opencog query))
 
 ;; XXX FIXME: This file defines a "Room State", which currently can
 ;; be "empty" or "non-empty", depending on whether faces are visible

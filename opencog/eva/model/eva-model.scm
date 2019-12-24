@@ -4,9 +4,8 @@
 
 (define-module (opencog eva-model)
 	#:use-module (opencog)
-	#:use-module (opencog atom-types)
+	#:use-module (opencog nlp)
 	#:use-module (opencog exec)
-	#:use-module (opencog query)
 )
 
 ; Load various parts....

@@ -167,50 +167,45 @@ ELSE (ATOMSPACE_FOUND)
 	MESSAGE(FATAL_ERROR "AtomSpace missing: it is needed!")
 ENDIF (ATOMSPACE_FOUND)
 
-# ----------------------------------------------------------
-# Check for boost. We need dynamic-linked, threaded libs by default.
-SET(Boost_USE_STATIC_LIBS OFF)
-SET(Boost_USE_MULTITHREADED ON)
-SET(MIN_BOOST 1.46)
+# CogServer
+FIND_PACKAGE(CogServer 1.0.0 CONFIG)
+IF (COGSERVER_FOUND)
+	MESSAGE(STATUS "CogServer found.")
+	ADD_DEFINITIONS(-DHAVE_SERVER)
+	SET(HAVE_SERVER 1)
+ELSE (COGSERVER_FOUND)
+	MESSAGE(STATUS "CogServer was not found.")
+ENDIF (COGSERVER_FOUND)
 
-# Required boost packages
-FIND_PACKAGE(Boost ${MIN_BOOST} COMPONENTS date_time filesystem program_options regex serialization system thread REQUIRED)
+# AttentionBank
+FIND_PACKAGE(AttentionBank 1.0.0 CONFIG)
+IF (ATTENTIONBANK_FOUND)
+	MESSAGE(STATUS "AttentionBank found.")
+	ADD_DEFINITIONS(-DHAVE_BANK)
+	SET(HAVE_BANK 1)
+ELSE (ATTENTIONBANK_FOUND)
+	MESSAGE(STATUS "AttentionBank was not found. OpenPsi and Ghost will not be built.")
+ENDIF (ATTENTIONBANK_FOUND)
 
-IF(Boost_FOUND)
-	SET(Boost_FOUND_SAVE 1)
-ELSE(Boost_FOUND)
-	MESSAGE(FATAL_ERROR "Boost ${MIN_BOOST} or newer is needed to build OpenCog!")
-ENDIF(Boost_FOUND)
+# URE
+FIND_PACKAGE(URE 1.0.0 CONFIG)
+IF (URE_FOUND)
+	MESSAGE(STATUS "URE found.")
+	ADD_DEFINITIONS(-DHAVE_URE)
+	SET(HAVE_URE 1)
+ELSE (URE_FOUND)
+	MESSAGE(STATUS "URE was not found. OpenPsi will not be built.")
+ENDIF (URE_FOUND)
 
-# Opencog won't compile with Boost 1.51, some kind of conflict with
-# hash functions, see github bugs 1 and 36
-IF(105100 EQUAL ${Boost_VERSION})
-	MESSAGE(FATAL_ERROR "Boost version 1.51 will not work with OpenCog.  Please use a different version.")
-ENDIF(105100 EQUAL ${Boost_VERSION})
-MESSAGE(STATUS "Boost version ${Boost_VERSION} found.")
-
-# Optional boost packages; can build without these.
-FIND_PACKAGE(Boost ${MIN_BOOST} COMPONENTS python program_options QUIET)
-FIND_PACKAGE(Boost ${MIN_BOOST} COMPONENTS math_c99 QUIET)
-
-# Arghhh. Except cmake is treating above as required, not optional. #$%**&
-IF(Boost_FOUND_SAVE)
-	SET(Boost_FOUND 1)
-ENDIF(Boost_FOUND_SAVE)
-
-# ----------------------------------------------------------
-# cpprest
-# XXX FIXME This is required only by the soon-to-be obsolete
-# PatternMiner. Remove this when the (old) PatternMiner is gone.
-FIND_PACKAGE(cpprest 2.6)
-IF (cpprest_FOUND AND cpprest_LIBRARY)
-	ADD_DEFINITIONS(-DHAVE_cpprest)
-	SET(HAVE_cpprest 1)
-	SET(cpprest_DIR_MESSAGE "cpprest was found.")
-ELSE (cpprest_FOUND AND cpprest_LIBRARY)
-        SET(cpprest_DIR_MESSAGE "cpprest was not found; Distributed version of PatternMiner will not be built.\nTo over-ride, make sure that the environment variable cpprest_LIBRARY is set.\nInstallation instructions: https://casablanca.codeplex.com/")
-ENDIF (cpprest_FOUND AND cpprest_LIBRARY)
-MESSAGE(STATUS "${cpprest_DIR_MESSAGE}")
+# PLN
+FIND_PACKAGE(PLN CONFIG)
+IF (PLN_FOUND)
+	MESSAGE(STATUS "PLN found.")
+	ADD_DEFINITIONS(-DHAVE_PLN)
+	SET(HAVE_PLN 1)
+ELSE (PLN_FOUND)
+	MESSAGE(STATUS "PLN was not found. Ghost will not be built.")
+ENDIF (PLN_FOUND)
 
 # ----------------------------------------------------------
 # Needed for unit tests
@@ -246,16 +241,6 @@ MESSAGE(STATUS "${STACK_FOUND_MESSAGE}")
 FIND_LIBRARY(GMP_LIBRARY gmp)
 FIND_PATH(GMP_INCLUDE_DIR gmp.h)
 
-# Gtk-3 required for visualization
-FIND_PACKAGE(GTK3)
-IF (GTK3_FOUND)
-	# MESSAGE(STATUS "GTK3 found.")
-	ADD_DEFINITIONS(-DHAVE_GTK)
-	SET(HAVE_GTK 1)
-ELSE (GTK3_FOUND)
-	MESSAGE(STATUS "GTK missing: needed for the the gtk-visualizer.")
-ENDIF (GTK3_FOUND)
-
 # Gnu Guile scheme interpreter
 # Version 2.2.2 is needed for mrs io ports, compilation, atomics, nlp
 FIND_PACKAGE(Guile 2.2.2)
@@ -269,20 +254,9 @@ ELSE (GUILE_FOUND AND GMP_LIBRARY AND GMP_INCLUDE_DIR)
 ENDIF (GUILE_FOUND AND GMP_LIBRARY AND GMP_INCLUDE_DIR)
 
 # ----------------------------------------------------------
-# Lapack is needed for BLOPEX
-FIND_PACKAGE(LAPACK)
-IF (LAPACK_FOUND)
-	# MESSAGE(STATUS "LAPACK found.")
-	ADD_DEFINITIONS(-DHAVE_LAPACK)
-	SET(HAVE_LAPACK 1)
-ELSE (LAPACK_FOUND)
-	MESSAGE(STATUS "LAPACK missing: needed for blopex-based clustering.")
-ENDIF (LAPACK_FOUND)
-
-# ----------------------------------------------------------
 # Link-Grammar is needed for several NLP subsystems
-# Only 5.4.0 or newer has the required API in it.
-FIND_PACKAGE(LinkGrammar 5.4.0)
+# Only 5.6.2 or newer has the required API in it.
+FIND_PACKAGE(LinkGrammar 5.6.2)
 IF (LINK_GRAMMAR_FOUND)
 	SET(HAVE_LINK_GRAMMAR 1)
 	INCLUDE_DIRECTORIES(${LINK_GRAMMAR_INCLUDE_DIRS})
@@ -300,87 +274,9 @@ ELSE (UUID_FOUND)
 ENDIF (UUID_FOUND)
 
 # ----------------------------------------------------------
-# Octomap
-FIND_PACKAGE(Octomap)
-IF(OCTOMAP_FOUND AND OCTOMAP_LIBRARY)
-  ADD_DEFINITIONS(-DHAVE_OCTOMAP)
-  SET(HAVE_OCTOMAP 1)
-  INCLUDE_DIRECTORIES(${OCTOMAP_INCLUDE_DIR})
-  SET(OCTOMAP_DIR_MESSAGE "Octomap was found.")
-ELSE (OCTOMAP_FOUND AND OCTOMAP_LIBRARY)
-  SET(OCTOMAP_DIR_MESSAGE "Octomap missing: needed for the SpaceTime map.")
-ENDIF(OCTOMAP_FOUND AND OCTOMAP_LIBRARY)
-
-# ----------------------------------------------------------
 # Python and Cython
-#
-# NOTE: Python interpreter is needed for runing python unit tests,
-# and for running the FindCython module.
-#
-# Search for Python3 first, and use that, if found. Else use Python2.
-# To use Python2 only from the build directory run the following
-# rm CMakeCache.txt && cmake -DCMAKE_DISABLE_FIND_PACKAGE_Python3Interp=TRUE ..
 
-FIND_PACKAGE(Python3Interp)
-IF (3.4.0 VERSION_LESS "${PYTHON3_VERSION_STRING}")
-	SET (HAVE_PY_INTERP 1)
-	SET (PYTHON_VER python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-	MESSAGE(STATUS "Python ${PYTHON3_VERSION_STRING} interpreter found.")
-ENDIF()
-
-IF (NOT HAVE_PY_INTERP)
-	FIND_PACKAGE(PythonInterp)
-	IF (2.7.0 VERSION_LESS ${PYTHON_VERSION_STRING})
-		SET (HAVE_PY_INTERP 1)
-		SET (PYTHON_VER python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-		MESSAGE(STATUS "Python ${PYTHON_VERSION_STRING} interpreter found.")
-	ENDIF()
-ENDIF()
-
-FIND_PACKAGE(PythonLibs)
-IF (PYTHONLIBS_FOUND AND
-     ((PYTHON3INTERP_FOUND AND 3.4.0 VERSION_LESS ${PYTHONLIBS_VERSION_STRING})
-     OR
-     (2.7.0 VERSION_LESS ${PYTHONLIBS_VERSION_STRING})))
-	SET (HAVE_PY_LIBS 1)
-	MESSAGE(STATUS "Python ${PYTHONLIBS_VERSION_STRING} libraries found.")
-ELSE()
-	MESSAGE(STATUS "Python libraries NOT found.")
-ENDIF()
-
-# Cython is used to generate python bindings.
-IF(HAVE_PY_INTERP)
-	FIND_PACKAGE(Cython 0.23.0)
-
-	IF (CYTHON_FOUND AND HAVE_PY_LIBS)
-		# Find python destination dir for python bindings because it may
-		# differ on each operating system.
-		ADD_DEFINITIONS(-DHAVE_CYTHON)
-		SET(HAVE_CYTHON 1)
-
-		# Hack together some reasonable install location.
-		SET(PYTHON_DEST
-			"lib${LIB_DIR_SUFFIX}/${PYTHON_VER}/dist-packages/opencog")
-		MESSAGE(STATUS
-			"Python install dir: ${CMAKE_INSTALL_PREFIX}/${PYTHON_DEST}" )
-
-	ELSE (CYTHON_FOUND AND HAVE_PY_LIBS)
-		IF(NOT CYTHON_FOUND)
-			MESSAGE(STATUS "Cython executable not found.")
-		ENDIF(NOT CYTHON_FOUND)
-	ENDIF (CYTHON_FOUND AND HAVE_PY_LIBS)
-
-	# Nosetests will find and automatically run python tests.
-	IF (PYTHON3INTERP_FOUND)
-		FIND_PROGRAM(NOSETESTS_EXECUTABLE nosetests-3.4)
-	ELSE ()
-		FIND_PROGRAM(NOSETESTS_EXECUTABLE nosetests-2.7)
-	ENDIF ()
-	IF (NOSETESTS_EXECUTABLE AND CYTHON_FOUND AND HAVE_PY_LIBS)
-		SET(HAVE_NOSETESTS 1)
-		MESSAGE(STATUS "Using nosetests executable " ${NOSETESTS_EXECUTABLE})
-	ENDIF (NOSETESTS_EXECUTABLE AND CYTHON_FOUND AND HAVE_PY_LIBS)
-ENDIF(HAVE_PY_INTERP)
+include(OpenCogFindPython)
 
 # ----------------------------------------------------------
 # Optional, currently needed only to hush up DRD in util/Logger.cc
@@ -397,47 +293,6 @@ ELSE (VALGRIND_FOUND)
 	MESSAGE(STATUS "VALGRIND missing: needed for thread debugging.")
 ENDIF (VALGRIND_FOUND)
 
-# -----------------------------------------------------------------------------
-# XXX FIXME. The jsoncpp, TBB and ZeroMQ packages are needed by
-# the deprecated and/or obsolete AtomSpacePublisher module.
-# I'm not sure, but I suspect that module doesn't work.  It's
-# not maintained by anyone; it's certainly out of date, and doesn't
-# support any of the modern features. So ....!? FIXME
-
-# jsoncpp
-FIND_PACKAGE(PkgConfig)
-IF(PKG_CONFIG_FOUND)
-  pkg_check_modules(JSONCPP jsoncpp)
-  IF(JSONCPP_FOUND)
-    ADD_DEFINITIONS(-DHAVE_JSONCPP)
-    SET(HAVE_JSONCPP 1)
-    SET(JSONCPP_DIR_MESSAGE "JsonCPP was found")
-  ELSE(JSONCPP_FOUND)
-    SET(JSONCPP_DIR_MESSAGE "JsonCPP was not found; the AtomSpace Publisher Module needs JsonCPP to publish events in JSON.\nIf you need to receive AtomSpace events in JSON, install JsonCPP using your package manager \nsuch as apt or build from source: https://github.com/open-source-parsers/jsoncpp/wiki/Building")
-  ENDIF(JSONCPP_FOUND)
-ENDIF(PKG_CONFIG_FOUND)
-MESSAGE(STATUS "${JSONCPP_DIR_MESSAGE}")
-
-# Threaded Building Blocks (Intel TBB) library
-FIND_PACKAGE(TBB)
-IF (TBB_FOUND)
-	SET(HAVE_TBB 1)
-ELSE (TBB_FOUND)
-	SET(TBB_DIR_MESSAGE "Intel TBB (Threaded Building Blocks) was not found; the AtomSpace Publisher module will not be built. Installation instructions: https://www.threadingbuildingblocks.org/download")
-ENDIF (TBB_FOUND)
-MESSAGE(STATUS "${TBB_DIR_MESSAGE}")
-
-# ZeroMQ
-FIND_PACKAGE(ZMQ 3.2.4)
-IF (ZMQ_FOUND AND ZMQ_LIBRARY)
-	ADD_DEFINITIONS(-DHAVE_ZMQ)
-	SET(HAVE_ZMQ 1)
-	SET(ZMQ_DIR_MESSAGE "ZeroMQ was found.")
-ELSE (ZMQ_FOUND AND ZMQ_LIBRARY)
-	SET(ZMQ_DIR_MESSAGE "ZeroMQ was not found; the AtomSpace Publisher module, and the message system used by GUI monitor for OAC will not be built.\nTo over-ride, make sure that the environment variable ZMQ_LIBRARY is set.\nInstallation instructions: http://zeromq.org/intro:get-the-software")
-ENDIF (ZMQ_FOUND AND ZMQ_LIBRARY)
-MESSAGE(STATUS "${ZMQ_DIR_MESSAGE}")
-
 # ===================================================================
 # Global includes
 
@@ -445,7 +300,7 @@ MESSAGE(STATUS "${ZMQ_DIR_MESSAGE}")
 # Include configuration.
 
 # Set default include paths.
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIRS}
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}
 	${COGUTIL_INCLUDE_DIR} ${ATOMSPACE_INCLUDE_DIR})
 
 # Macros that define how atom types get declared.
@@ -454,7 +309,8 @@ IF (NOT DEFINED ATOMSPACE_DATA_DIR)
 ENDIF (NOT DEFINED ATOMSPACE_DATA_DIR)
 
 INCLUDE("${ATOMSPACE_DATA_DIR}/cmake/OpenCogMacros.cmake")
-INCLUDE("${ATOMSPACE_DATA_DIR}/cmake/OpenCogFunctions.cmake")
+INCLUDE("${ATOMSPACE_DATA_DIR}/cmake/OpenCogGuile.cmake")
+INCLUDE("${ATOMSPACE_DATA_DIR}/cmake/OpenCogCython.cmake")
 
 # -------------------------------------------------
 # Library configuration
@@ -506,23 +362,17 @@ SET (MAN_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/share/man")
 # ==========================================================
 # Decide what to build, based on the packages found.
 
-IF(HAVE_ATOMSPACE AND HAVE_COGUTIL)
-	SET(HAVE_ATTENTION 1)
-	SET(HAVE_DIMEMBED 1)
-	SET(HAVE_STATISTICS 1)
-ENDIF(HAVE_ATOMSPACE AND HAVE_COGUTIL)
-
-IF(HAVE_ATOMSPACE)
-	SET(HAVE_SERVER 1)
-ENDIF(HAVE_ATOMSPACE)
+IF(HAVE_ATOMSPACE AND HAVE_GUILE AND HAVE_BANK AND HAVE_URE)
+	SET(HAVE_OPENPSI 1)
+ENDIF(HAVE_ATOMSPACE AND HAVE_GUILE AND HAVE_BANK AND HAVE_URE)
 
 IF(HAVE_ATOMSPACE AND HAVE_GUILE AND HAVE_LINK_GRAMMAR AND HAVE_UUID)
 	SET(HAVE_NLP 1)
 ENDIF(HAVE_ATOMSPACE AND HAVE_GUILE AND HAVE_LINK_GRAMMAR AND HAVE_UUID)
 
-IF(HAVE_SERVER AND HAVE_TBB AND HAVE_ZMQ AND HAVE_JSONCPP)
-  SET(HAVE_EVENT_PUBLISHING_DEPENDENCIES 1)
-ENDIF(HAVE_SERVER AND HAVE_TBB AND HAVE_ZMQ AND HAVE_JSONCPP)
+IF(HAVE_BANK AND HAVE_OPENPSI AND HAVE_NLP AND HAVE_PLN)
+	SET(HAVE_GHOST 1)
+ENDIF(HAVE_BANK AND HAVE_OPENPSI AND HAVE_NLP AND HAVE_PLN)
 
 ADD_SUBDIRECTORY(lib)
 ADD_SUBDIRECTORY(opencog)
@@ -663,20 +513,15 @@ ADD_SUBDIRECTORY(doc EXCLUDE_FROM_ALL)
 # ===================================================================
 # Show a summary of what we found, what we will do.
 
-SUMMARY_ADD("Attention" "Agents for attention allocation dynamics" HAVE_ATTENTION)
-SUMMARY_ADD("Blopex" "BLOPEX block eigenvalue solver" HAVE_LAPACK)
 SUMMARY_ADD("Cython bindings" "Cython (python) bindings" HAVE_CYTHON)
-SUMMARY_ADD("Dim. Embedding" "Compute dimensional embedding of the AtomSpace" HAVE_DIMEMBED)
 SUMMARY_ADD("Doxygen" "Code documentation" DOXYGEN_FOUND)
-SUMMARY_ADD("GTK Visualizer" "GTK3-based Atomspace Visualizer" HAVE_GTK)
 SUMMARY_ADD("Python tests" "Python bindings nose tests" HAVE_NOSETESTS)
+SUMMARY_ADD("Unit tests" "Unit tests" CXXTEST_FOUND)
+SUMMARY_ADD("NLP" "Natural Language Processing tools" HAVE_NLP)
+SUMMARY_ADD("OpenPsi" "MicroPsi OpenCog implementation" HAVE_OPENPSI)
+SUMMARY_ADD("Ghost" "Ghost chatbot" HAVE_GHOST)
+SUMMARY_ADD("Haskell codes" "Logic via Lojban" HAVE_STACK AND BUILD_LOJBAN)
 SUMMARY_ADD("REST Events" "REST Atomspace Event Publisher module"
 	HAVE_EVENT_PUBLISHING_DEPENDENCIES)
-SUMMARY_ADD("Server" "The CogServer" HAVE_SERVER)
-SUMMARY_ADD("SpaceTime" "3D Space-Time object tracker" HAVE_OCTOMAP)
-SUMMARY_ADD("Unit tests" "Unit tests" CXXTEST_FOUND)
-SUMMARY_ADD("NLP" "Natural Language Processing" HAVE_NLP)
-SUMMARY_ADD("PatternMiner" "Pattern Miner" HAVE_ATOMSPACE)
-SUMMARY_ADD("Haskell codes" "Logic via Lojban" HAVE_STACK AND BUILD_LOJBAN)
 
 SUMMARY_SHOW()

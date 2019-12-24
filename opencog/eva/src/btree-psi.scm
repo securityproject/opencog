@@ -22,12 +22,8 @@
 ;
 ; Unit testing:  See `unit-test.scm` and also notes in `behavior.scm`.
 ;
-
-(add-to-load-path "/usr/local/share/opencog/scm")
-
 (use-modules (opencog))
 (use-modules (opencog logger))
-(use-modules (opencog query))  ; XXX work-around relex2logic bug
 (use-modules (opencog eva-model))
 ; Start the cogsserver.  It is used by the face-tracker to poke data
 ; into the atomspace.

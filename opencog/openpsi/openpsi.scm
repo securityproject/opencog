@@ -12,7 +12,9 @@
   #:use-module (ice-9 threads) ; For `par-map`
   #:use-module (srfi srfi-1) ; For `drop-right`, `append-map`, etc.
   #:use-module (opencog)
+  #:use-module (opencog oc-config)
   #:use-module (opencog exec)
+  #:use-module (opencog attention)
   #:use-module (opencog logger)
 
   #:export (
@@ -54,7 +56,7 @@
     )
 )
 
-(load-extension "libopenpsi" "opencog_openpsi_init")
+(load-extension (string-append opencog-ext-path-openpsi "libopenpsi") "opencog_openpsi_init")
 
 ; NOTE: The order of loading helps avoid warnings
 (load-from-path "opencog/openpsi/utilities.scm")

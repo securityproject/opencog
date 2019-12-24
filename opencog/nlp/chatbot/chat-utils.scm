@@ -11,23 +11,18 @@
 (use-modules (ice-9 threads)  ; needed for par-map
              (srfi srfi-1)
              (opencog)
-             (opencog rule-engine)
+             (opencog exec)
+             (opencog ure)
+             (opencog attention-bank)
              (opencog nlp)
              (opencog nlp fuzzy)
              (opencog nlp microplanning)
-             (opencog nlp relex2logic)
-             (opencog exec))
-
-; Temporarily used during transitioning. The aim is to make life easier for
-; developers who work with atomspace before opencog/atomspace/pull/1664 while
-; waiting for opencog/opencog/issues/3107 to resolve.
-(if (resolve-module '(opencog attention-bank) #:ensure #f)
-  (use-modules (opencog attention-bank)))
+             (opencog nlp relex2logic))
 
 ; -----------------------------------------------------------------------
 ; TODO: Replace these time related utilities with one from TimeMap, when it is
 ; ready.
-(define time-domain (TimeDomainNode "Dialogue-System"))
+(define time-domain (DialogNode "Dialogue-System"))
 
 (define (sent-set-time sent)
 "
@@ -48,7 +43,7 @@
 
   Returns the time, in seconds, at which the SentenceNode SENT was parsed.
 "
-  (cog-number (car (cog-chase-link 'AtTimeLink 'TimeNode sent)))
+  (string->number (cog-name (car (cog-chase-link 'AtTimeLink 'TimeNode sent))))
 )
 
 (define-public (get-last-said-sent)
@@ -72,7 +67,7 @@
     (define last-time 0)
     (define result '())
     (define (last-sent sent)
-        (let ((sent-time (cog-number (gar sent))))
+      (let ((sent-time (string->number (cog-name (gar sent)))))
             (if (>= sent-time last-time)
                 (begin
                     (set! last-time sent-time)

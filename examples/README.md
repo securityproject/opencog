@@ -21,28 +21,9 @@ sureal          - Demonstrates how to use the Surface Realization
 openpsi         - An example implementation of openpsi to control a simple
                   agent.
 
-learning        - Various learning algorithm examples. For now only the miner.
-
 Stale Examples:
 ---------------
 The following examples illustrate subsystems that are not currently
 maintained, and may be broken or non-operational.
 
 conceptual_blending - Blending together of similar concepts.
-
-hopfield        - Provides a toy example for Economic Attention
-                  Allocation Networks, emulating a type of associative
-                  memory neural network called a 'Hopfield network'.
-
-visual_demos    - A number of demos to visually represent the dynamics
-                  of OpenCog.
-
-Deprecated examples:
---------------------
-The strategic direction for opencog is to move away from the current
-cogserver + modules + agents design, and to encourage coding entirely
-in either scheme and python.   Thus, please reconsider creating new
-agents using these deprecated C++ interfaces.
-
-module          - Provides a template for creating a custom module.
-agents          - Provides a template for creating a custom agent.

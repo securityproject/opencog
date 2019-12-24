@@ -36,7 +36,7 @@
   Helper function to find the maximum number of words CONCEPT has.
 "
   (define c (cog-outgoing-set (cog-execute!
-              (Get (Reference (Variable "$x") CONCEPT)))))
+              (Get (Member (Variable "$x") CONCEPT)))))
 
   (if (null? c)
       -1  ; This may happen if the concept is not yet defined in the system...
@@ -54,7 +54,7 @@
 (define (terms-to-atomese TERMS)
 "
   Helper function to convert a list of terms into atomese.
-  For use of choices, negation, and topic etc.
+  For use of choices, negation etc.
 "
   (map (lambda (t)
     (cond ((or (equal? 'word (car t)) (equal? 'word-apos (car t)))
@@ -76,10 +76,9 @@
        TERMS))
 
 ; ----------
-(define (generate-word-seqs SENT)
+(define (generate-word-seq SENT)
 "
-  Get the words and their corresponding lemmas associate with SENT
-  and put them into two lists -- word-seq and lemma-seq.
+  Get the words and generate a word-seq for matching.
 "
   (define input-word-seq (car (sent-get-words-in-order SENT)))
 
@@ -142,66 +141,14 @@
     (List SENT
       (List (map
         (lambda (w)
-          (WordNode (string-downcase (cog-name w))))
-        final-word-seq))))
-
-  ; Generate this lemma-seq only for backward compatibility
-  (if (not ghost-with-ecan)
-    (let (; In some rare situation, particularly if the input
-          ; sentence is not grammatical, RelEx may not lemmatize a
-          ; word because of the ambiguity.
-          ; As a result the lemma sequence may contain non-lemmatized
-          ; words, which will become a problem during rule-matching.
-          ; As a quick workaround, do "ghost-get-lemma" for each of
-          ; the words in the lemma sequence
-          (lemma-seq (cog-outgoing-set
-            (apply ghost-get-lemma
-              ; For idioms, they will be joined by a "_",
-              ; e.g. "allows_for"
-              ; Split it so that DualLink can find the rule
-              (append-map
-                (lambda (w)
-                  (if (equal? #f (string-contains (cog-name w) "_"))
-                    (list w)
-                    (map Word (string-split (cog-name w) #\_))))
-                (get-seq 'LemmaLink)))))
-          (final-lemma-seq '()))
-      ; Get the contractions found above, if any, and put it in the lemma-seq
-      ; Use their original form in matching, instead of their lemmas
-      (do ((i 0 (1+ i)))
-          ((>= i (length lemma-seq)))
-        (set! final-lemma-seq (append final-lemma-seq (list
-          (cond
-            ; For the next-word-prefix-with-apos? case
-            ((assoc-ref word-apos-alist (cons i (1+ i)))
-             (set! i (1+ i))
-             (assoc-ref word-apos-alist (cons (1- i) i)))
-            ; For having apos in the same word
-            ((assoc-ref word-apos-alist (cons i i))
-             (assoc-ref word-apos-alist (cons i i)))
-            ; For nonbreaking-prefix like Mr. Mrs. etc
-            ((and (< (1+ i) (length lemma-seq))
-                  (string=? "." (cog-name (list-ref lemma-seq (1+ i))))
-                  (is-nonbreaking-prefix? (cog-name (list-ref lemma-seq i))))
-             (set! i (1+ i))
-             (WordNode (string-append (cog-name (list-ref lemma-seq (1- i))) ".")))
-            ; For time, regardless of the format e.g. "2am", "2 am", "2 a.m." or "2a.m.",
-            ; will all get splitted into two words, and this is a quick workaround for
-            ; the problem of RelEx lemmatizing "a.m." to "be"
-            ((and (< (1+ i) (length lemma-seq))
-                  (string->number (cog-name (list-ref lemma-seq i)))
-                  (string=? "be" (cog-name (list-ref lemma-seq (1+ i)))))
-             (set! i (1+ i))
-             (list (list-ref lemma-seq (1- i)) (list-ref final-word-seq i)))
-            ; Just a normal word
-            (else (list-ref lemma-seq i)))))))
-    (Evaluation
-      ghost-lemma-seq
-      (List SENT
-        (List (map
-          (lambda (w)
-            (WordNode (string-downcase (cog-name w))))
-          (flatten final-lemma-seq))))))))
+          (define word-str (cog-name w))
+          (define wordnode-dc (WordNode (string-downcase word-str)))
+          (cog-set-value!
+            wordnode-dc
+            ghost-word-original
+            (WordNode word-str))
+          wordnode-dc)
+        final-word-seq)))))
 
 ; ----------
 (define (get-lemma-from-relex WORD)
@@ -257,7 +204,7 @@
             ((eq? 'VariableNode (cog-type g)) '())
             (else (list g))))
     (cog-outgoing-set
-      (cog-execute! (Get (Reference (Variable "$x") CONCEPT))))))
+      (cog-execute! (Get (Member (Variable "$x") CONCEPT))))))
 
 ; ----------
 (define (is-member? GRD MEMB)
@@ -326,41 +273,30 @@
 )
 
 ; ----------
+(define (flatten-linkval LV)
+"
+  Given a LinkValue LV, flatten any nested LinkValues,
+  with an assumption that the values are all atoms.
+
+  A Scheme list will be returned as a result.
+"
+  (append-map
+    (lambda (x)
+      (if (cog-atom? x)
+        (list x)
+        (flatten-linkval x)))
+    (cog-value->list LV)))
+
+; ----------
 (define (get-rejoinder-level TYPE)
 "
-  Return the rejoinder level, e.g. a = level 1, b = level 2, and so on...
+  Return the rejoinder level, e.g. j1 = level 1, j2 = level 2, and so on...
 "
-  (- (char->integer TYPE) 96))
-
-; ----------
-(define (get-rule-topic RULE)
-"
-  Get which topic(s) the RULE is in.
-"
-  (filter
-    (lambda (x)
-      (any (lambda (y) (equal? ghost-topic y))
-           (cog-chase-link 'InheritanceLink 'ConceptNode x)))
-    (cog-chase-link 'InheritanceLink 'ConceptNode RULE)))
-
-; ----------
-(define (is-rule-in-topic? RULE TOPIC)
-"
-  Check if RULE is a member of TOPIC.
-
-  It is not impossible that the exact same rule exists in
-  multiple topics, so get and check all of them.
-"
-  (any (lambda (t) (equal? TOPIC t)) (get-rule-topic RULE)))
-
-; ----------
-(define (topic-has-feature? TOPIC FEATURE)
-"
-  Check if TOPIC has a certain feature named FEATURE.
-"
-  (not (equal? #f
-    (find (lambda (f) (equal? (StringValue FEATURE) f))
-          (cog-value->list (cog-value TOPIC ghost-topic-feature))))))
+  (if (string-prefix? "j" TYPE)
+    (string->number (string-trim TYPE (lambda (c) (eqv? c #\j))))
+    ; For backward compatibility,
+    ; e.g. a = level 1, b = level 2, and so on...
+    (- (char->integer (string-ref TYPE 0)) 96)))
 
 ; ----------
 (define (get-related-psi-rules ATOM)
@@ -370,20 +306,24 @@
   (filter psi-rule? (cog-get-trunk ATOM)))
 
 ; ----------
-(define (get-rule-from-label LABEL)
+(define (get-rules-from-label LABEL)
 "
-  Given the label of a rule in string, return the rule with that label.
+  Given the label of a rule in string, return the psi-rule(s) with that label.
 "
-  (define rule (filter psi-rule?
-    (cog-chase-link 'ListLink 'ImplicationLink
-      (Concept LABEL))))
+  (define rules
+    (map gar (filter
+      (lambda (x)
+        (and (psi-rule? (gar x))
+             (any (lambda (p) (string=? "alias" (cog-name p)))
+               (cog-chase-link 'EvaluationLink 'PredicateNode x))))
+      (cog-incoming-by-type (Concept LABEL) 'ListLink))))
 
-  (if (null? rule)
+  (if (null? rules)
       (begin
         (cog-logger-debug ghost-logger
-          "Failed to find the GHOST rule \"~a\"" LABEL)
+          "Failed to find any GHOST rule with label \"~a\"" LABEL)
         (list))
-      (car rule)))
+      rules))
 
 ; ----------
 (define (is-nonbreaking-prefix? WORD)
@@ -410,4 +350,13 @@
   (or (member (string-downcase WORD) lst)
       (and (string-suffix? "." WORD)
            (member (string-downcase (car (string-split WORD #\.))) lst)))
+)
+
+; ----------
+(define (current-time-us)
+"
+  Returns the current-time in microseconds.
+"
+  (define t (gettimeofday))
+  (+ (car t) (/ (cdr t) 1000000))
 )

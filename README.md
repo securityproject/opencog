@@ -1,7 +1,7 @@
 OpenCog
 =======
 
-[![CircleCI](https://img.shields.io/circleci/project/github/singnet/opencog.svg)](https://circleci.com/gh/singnet/opencog)
+[![CircleCI](https://circleci.com/gh/opencog/opencog.svg?style=svg)](https://circleci.com/gh/opencog/opencog)
 
 OpenCog is a framework for developing AI systems, especially appropriate
 for integrative multi-algorithm systems, and artificial general intelligence
@@ -20,7 +20,7 @@ used for representing knowledge and algorithms, providing a surface on
 which learning and reasoning algorithms are implemented. The AtomSpace
 consists of an in-RAM database, a "query language" aka "pattern matcher",
 a (ProLog-like) rule system, including forward and backward chainers,
-and an evaluator for the internal "programming langauge", Atomese. This
+and an evaluator for the internal "programming language", Atomese. This
 language is not really meant to be used by humans (although, defacto,
 it is) but rather, it is a language for representing knowledge and
 algorithms, on which (automated) reasoning and learning can be performed.
@@ -32,9 +32,10 @@ This git repository contains assorted projects that are central to the
 OpenCog project, but are not yet mature or stable, and are subject to
 active development and experimentation. These include:
 * An assortment of natural language processing subsystems, including:
--- Natural language generation (for expressiong thoughts as sentences).
--- Natural language input (for reading and hearing).
--- Assorted chatbots, some of which are embodied.
+  * Unsupervised natural langauge learning.
+  * Natural language generation (for expressiong thoughts as sentences).
+  * Natural language input (for reading and hearing).
+  * Assorted chatbots, some of which are embodied.
 * PLN, a probabilistic reasoning and inference system.
 * Attention Allocation, for managing combinatoric explosion during
   reasoning and language generation.
@@ -46,20 +47,18 @@ active development and experimentation. These include:
   [ROS Behavior Scripting](https://github.com/opencog/ros-behavior-scripting)
   repository.
 * OpenPsi, a model of psychological states. Its currently a mashup of
-  two unrelated ideas: a generic rule-class selection and plannning
+  two unrelated ideas: a generic rule-class selection and planning
   system, and a model of human psychological states. An open to-do item
   is to untangle these two.
-* An unsupervised learning system or "pattern miner", for extracting
-  "surprising" patterns.
 * A supervised learning system, MOSES, for extracting patterns from
-  tabular data. This is located in a seprate repository,
+  tabular data. This is located in a seperate repository,
   [MOSES](https://github.com/opencog/moses).
 * The CogServer, a network server providing shell access and a REST API.
 * Several (obsolete!?) data visualization subsystems.
 
 With the exception of MOSES and the CogServer, all of the above are in
 active development, are half-baked, poorly documented, mis-designed,
-subject to experimentation, and generally in need of love an attention.
+subject to experimentation, and generally in need of love and attention.
 This is where experimentation and integration are taking place, and,
 like any laboratory, things are a bit fluid and chaotic.
 
@@ -71,27 +70,13 @@ code, as well as other options for setting up development environments,
 more details are found on the [Building Opencog
 wiki](http://wiki.opencog.org/wikihome/index.php/Building_OpenCog).
 
-There is no single "demo" or system that can be "run"; rather, the
-various subsystems can be run individually, or together. The single
-most-fully-integrated, complete demo would be the embodied [Hanson
-Robotics](http://github.com/hansonrobotics) chat subsystem.  This
-can be run *without* having an actual robot; a virtual Blender
-animation may be used instead; a webcam and microphones are required
-for sensory input. Portions of this system can be found in the `nlp`
-directory, in this repo, as well as the
-[ROS Behavior Scripting](https://github.com/opencog/ros-behavior-scripting)
-repo. The full setup is located in the Hanson Robotics
-[HEAD](https://github.com/hansonrobotics/HEAD) repo, and ready-to-run
-Docker images can be found in the [OpenCog Docker
-repo](https://github.com/opencog/docker).
-
 
 Prerequisites
 -------------
 To build and run OpenCog, the packages listed below are required.
 With a few exceptions, most Linux distributions will provide these
-packages. Users of Ubuntu 14.04 "Trusty Tahr" may use the dependency
-installer at `/scripts/octool`.  Users of any version of Linux may
+packages. Users of Ubuntu may use the dependency installer from the
+`/opencog/octool` repoitory.  Users of any version of Linux may
 use the Dockerfile to quickly build a container in which OpenCog will
 be built and run.
 
@@ -107,10 +92,18 @@ be built and run.
 > It uses exactly the same build procedure as this package. Be sure
   to `sudo make install` at the end.
 
-###### libuuid
-> Library for generating UUID's
-> Used by various internal subsystems.
-> `sudo apt-get install uuid-dev`
+###### cogserver
+> OpenCog CogServer Network Server.
+> http://github.com/opencog/cogserver
+> It uses exactly the same build procedure as this package. Be sure
+  to `sudo make install` at the end.
+
+###### attention
+> OpenCog Attention Allocation subsystem.
+> http://github.com/opencog/attention
+> It uses exactly the same build procedure as this package. Be sure
+  to `sudo make install` at the end.
+
 
 Optional Prerequisites
 ----------------------
@@ -129,10 +122,18 @@ the build, will be more precise as to which parts will not be built.
 > It uses exactly the same build proceedure as this package. Be sure
   to `sudo make install` at the end.
 
-###### OctoMap
-> 3D occupancy grid mapping library
-> Required for the robot perception subsystem.
-> `sudo apt-get install liboctomap-dev`
+###### SpaceTime Server
+> OpenCog SpaceTime server.
+> http://github.com/opencog/spacetime
+> It uses exactly the same build procedure as this package. Be sure
+  to `sudo make install` at the end.
+
+###### URE
+> OpenCog Unified Rule Engine
+> http://github.com/opencog/ure
+> Required for PLN
+> It uses exactly the same build proceedure as this package. Be sure
+  to `sudo make install` at the end.
 
 Obsolete Prerequisites
 ----------------------
@@ -183,16 +184,6 @@ Some useful CMake's web sites/pages:
  - http://www.cmake.org/Wiki/CMakeMacroAddCxxTest
  - http://www.cmake.org/Wiki/CMake_HowToFindInstalledSoftware
 
-
-The main CMakeLists.txt currently sets -DNDEBUG. This disables Boost
-matrix/vector debugging code and safety checks, with the benefit of
-making it much faster. Boost sparse matrixes and (dense) vectors are
-currently used by ECAN's ImportanceDiffusionAgent. If you use Boost
-ublas in other code, it may be a good idea to at least temporarily
-unset NDEBUG. Also if the Boost assert.h is used it will be necessary
-to unset NDEBUG. Boost ublas is intended to respond to a specific
-BOOST_UBLAS_NDEBUG, however this is not available as of the current
-Ubuntu standard version (1.34).
 
 -Wno-deprecated is currently enabled by default to avoid a number of
 warnings regarding hash_map being deprecated (because the alternative

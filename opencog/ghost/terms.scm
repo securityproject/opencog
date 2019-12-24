@@ -25,10 +25,7 @@
     (list (list) (list)
       (if is-time?
         (list (WordNode time-1pt) (WordNode time-2pt))
-        (list (WordNode str-dc)))
-      (if is-time?
-        (list (WordNode time-1pt) (WordNode time-2pt))
-        (list (WordNode (get-lemma str-dc)))))))
+        (list (WordNode str-dc))))))
 
 ; ----------
 (define (word-apos STR)
@@ -39,7 +36,7 @@
   (let* (; This turns ’ into ' just to treat them as the same thing
          (nstr (regexp-substitute/global #f "’" STR 'pre "'" 'post))
          (w (WordNode (string-downcase nstr))))
-    (list (list) (list) (list w) (list w))))
+    (list (list) (list) (list w))))
 
 ; ----------
 (define (lemma STR)
@@ -59,7 +56,20 @@
                   ; "(LemmaLink v2 l)" in the context
                   (Evaluation (GroundedPredicate "scm: ghost-lemma?")
                               (List var l)))))
-    (list v c (list var) (list l))))
+    ; Special handling for the word "do"
+    ; Given just one word, without any other clues, it seems impossible to
+    ; determine whether the word "does" from the input means "perform" (do)
+    ; or "a female deer" (doe), so make sure, in this case, that the RelEx
+    ; outputs will be considered when "do" is in the pattern of a rule
+    (if (string-ci=? STR "do")
+      (let ((wi-var (Variable (gen-var str-dc #f))))
+        (set! v (append v (list
+          (TypedVariable wi-var (Type "WordInstanceNode")))))
+        (set! c (list
+          (ReferenceLink wi-var var)
+          (WordInstanceLink wi-var (Variable "$P"))
+          (LemmaLink wi-var (Word "do"))))))
+    (list v c (list var))))
 
 (define-public (ghost-lemma? GRD LEMMA)
 "
@@ -80,9 +90,8 @@
   (fold (lambda (wd lst)
                 (list (append (car lst) (car wd))
                       (append (cadr lst) (cadr wd))
-                      (append (caddr lst) (caddr wd))
-                      (append (cadddr lst) (cadddr wd))))
-        (list '() '() '() '())
+                      (append (caddr lst) (caddr wd))))
+        (list '() '() '())
         (map word (string-split STR #\sp))))
 
 ; ----------
@@ -90,21 +99,14 @@
 "
   Occurrence of a concept.
 "
-  (let ((g1 (Glob (gen-var STR #t)))
-        (g2 (Glob (gen-var STR #f)))
+  (let ((g (Glob (gen-var STR #t)))
         (clength (concept-length (Concept STR))))
-    (list (list (TypedVariable g1 (TypeSet (Type "WordNode")
-                                           (Interval (Number 1)
-                                                     (Number clength))))
-                (if ghost-with-ecan
-                  (list)
-                  (TypedVariable g2 (TypeSet (Type "WordNode")
-                                             (Interval (Number 1)
-                                                       (Number clength))))))
+    (list (list (TypedVariable g (TypeSet (Type "WordNode")
+                                          (Interval (Number 1)
+                                                    (Number clength)))))
           (list (Evaluation (GroundedPredicate "scm: ghost-concept?")
-                            (List (Concept STR) g1)))
-          (list g1)
-          (list g2))))
+                            (List (Concept STR) g)))
+          (list g))))
 
 (define-public (ghost-concept? CONCEPT . GRD)
 "
@@ -124,21 +126,14 @@
   Existence of either one of the items in the list will be
   considered as a match.
 "
-  (let ((g1 (Glob (gen-var "choices" #t)))
-        (g2 (Glob (gen-var "choices" #f)))
+  (let ((g (Glob (gen-var "choices" #t)))
         (tlength (term-length TERMS)))
-    (list (list (TypedVariable g1 (TypeSet (Type "WordNode")
-                                           (Interval (Number 1)
-                                                     (Number tlength))))
-                (if ghost-with-ecan
-                  (list)
-                  (TypedVariable g2 (TypeSet (Type "WordNode")
-                                             (Interval (Number 1)
-                                                       (Number tlength))))))
+    (list (list (TypedVariable g (TypeSet (Type "WordNode")
+                                          (Interval (Number 1)
+                                                    (Number tlength)))))
           (list (Evaluation (GroundedPredicate "scm: ghost-choices?")
-                            (List (List (terms-to-atomese TERMS)) g1)))
-          (list g1)
-          (list g2))))
+                            (List (List (terms-to-atomese TERMS)) g)))
+          (list g))))
 
 (define-public (ghost-choices? CHOICES . GRD)
 "
@@ -158,21 +153,14 @@
 "
   Occurrence of one or a list of terms that is optional.
 "
-  (let ((g1 (Glob (gen-var "optionals" #t)))
-        (g2 (Glob (gen-var "optionals" #f)))
+  (let ((g (Glob (gen-var "optionals" #t)))
         (tlength (term-length TERMS)))
-    (list (list (TypedVariable g1 (TypeSet (Type "WordNode")
-                                  (Interval (Number 0)
-                                            (Number tlength))))
-                (if ghost-with-ecan
-                  (list)
-                  (TypedVariable g2 (TypeSet (Type "WordNode")
-                                    (Interval (Number 0)
-                                              (Number tlength))))))
+    (list (list (TypedVariable g (TypeSet (Type "WordNode")
+                                 (Interval (Number 0)
+                                           (Number tlength)))))
           (list (Evaluation (GroundedPredicate "scm: ghost-optionals?")
-                            (List (List (terms-to-atomese TERMS)) g1)))
-          (list g1)
-          (list g2))))
+                            (List (List (terms-to-atomese TERMS)) g)))
+          (list g))))
 
 (define-public (ghost-optionals? OPTIONALS . GRD)
 "
@@ -197,8 +185,8 @@
   (list '()  ; No variable declaration
         (list (Evaluation (GroundedPredicate "scm: ghost-negation?")
                           (List (terms-to-atomese TERMS))))
-        ; Nothing for the word-seq and lemma-seq
-        '() '()))
+        ; Nothing for the word-seq
+        '()))
 
 (define-public (ghost-negation? . TERMS)
 "
@@ -206,8 +194,10 @@
 "
   (let* ; Get the raw text input
         ((sent (ghost-get-curr-sent))
-         (rtxt (cog-name (car (cog-chase-link 'ListLink 'Node sent))))
-         (ltxt (string-join (map get-lemma (string-split rtxt #\sp)))))
+         (txt-node (cog-chase-link 'ListLink 'Node sent))
+         (rtxt (if (null? txt-node) "" (cog-name (car txt-node))))
+         (ltxt (if (string-null? rtxt) ""
+                 (string-join (map get-lemma (string-split rtxt #\sp))))))
         (if (any (lambda (t) (text-contains? rtxt ltxt t)) TERMS)
             (stv 0 1)
             (stv 1 1))))
@@ -219,20 +209,13 @@
   can be restricted.
   Note: -1 in the upper bound means infinity.
 "
-  (let* ((g1 (Glob (gen-var "wildcard" #t)))
-         (g2 (Glob (gen-var "wildcard" #f))))
+  (let* ((g (Glob (gen-var "wildcard" #t))))
     (list (list
-      (TypedVariable g1
+      (TypedVariable g
         (TypeSet (Type "WordNode")
-                 (Interval (Number LOWER) (Number UPPER))))
-      (if ghost-with-ecan
-        (list)
-        (TypedVariable g2
-          (TypeSet (Type "WordNode")
-                   (Interval (Number LOWER) (Number UPPER))))))
+                 (Interval (Number LOWER) (Number UPPER)))))
         '()
-        (list g1)
-        (list g2))))
+        (list g))))
 
 ; ----------
 (define (tts-feature ARGS)
@@ -274,13 +257,39 @@
 )
 
 ; ----------
+(define-public (ghost-any-text-input?)
+"
+  Check if there is any text input to GHOST that is currently being processed.
+"
+  (if (null? (ghost-get-curr-sent))
+    (stv 0 1)
+    (stv 1 1))
+)
+
+; ----------
+(define (parse-method-name method-name)
+"
+  Checks if the method-name has a prefix 'scm_' or 'py_'
+  and converts it to the corresponding name 'scm:name' or 'py:name'
+  to be used as GroundedPredicate name.
+  By default scm is used if the method-name does not have the prefix.
+"
+ (cond
+  ((string-prefix? "scm_" method-name)
+   (string-append "scm:" (substring method-name 4)))
+  ((string-prefix? "py_" method-name)
+   (string-append "py:" (substring method-name 3)))
+  (else (string-append "scm:" method-name))))
+
+; ----------
 (define (context-function NAME ARGS)
 "
   Occurrence of a function in the context of a rule.
-  The Scheme function named NAME should have already been defined.
+  The Scheme or Python function named NAME should have already been defined.
+  The Python name has 'py_' prefix and Scheme name has 'scm_' or no prefix.
 "
   ; TODO: Check to make sure the function has been defined
-  (Evaluation (GroundedPredicate (string-append "scm: " NAME))
+  (Evaluation (GroundedPredicate (parse-method-name NAME))
               (List (map (lambda (a) (if (equal? 'GlobNode (cog-type a))
                                          (List a) a))
                          ARGS))))
@@ -289,10 +298,11 @@
 (define (action-function NAME ARGS)
 "
   Occurrence of a function in the action of a rule.
-  The Scheme function named NAME should have already been defined.
+  The Scheme or Python function named NAME should have already been defined.
+  The Python name has 'py_' prefix and Scheme name has 'scm_' or no prefix.
 "
   ; TODO: Check to make sure the function has been defined
-  (ExecutionOutput (GroundedSchema (string-append "scm: " NAME))
+  (ExecutionOutput (GroundedSchema (parse-method-name NAME))
                    (List (map (lambda (a) (if (equal? 'GlobNode (cog-type a))
                                               (List a) a))
                               ARGS))))
@@ -314,6 +324,32 @@
   (list-ref os (random (length os) (random-state-from-platform))))
 
 ; ----------
+(define (get-var-literals VAR)
+"
+  Return the value grounded in original words.
+"
+  (ExecutionOutput (GroundedSchema "scm: ghost-get-original-word")
+                   (List VAR)))
+
+(define-public (ghost-get-original-word . WORDS)
+"
+  Given a list of words, return their original words stored as Values.
+"
+  (if (any (lambda (w) (or (equal? 'GlobNode (cog-type w))
+                           (equal? 'VariableNode (cog-type w))))
+           WORDS)
+      '()
+      (List (map
+        (lambda (w)
+          (define ori-word (cog-value w ghost-word-original))
+          (if (null? ori-word)
+            (begin
+              (cog-logger-warn ghost-logger "No original word is found for ~a" w)
+              w)
+            ori-word))
+        WORDS))))
+
+; ----------
 (define (get-var-lemmas VAR)
 "
   Turn the value grounded for VAR into lemmas.
@@ -329,7 +365,9 @@
                            (equal? 'VariableNode (cog-type g))))
            GRD)
       '()
-      (List (map Word (map get-lemma (map cog-name GRD))))))
+      (List (map
+        (lambda (w) (Word (get-lemma (cog-name w))))
+        (map (lambda (g) (cog-value g ghost-word-original)) GRD)))))
 
 ; ----------
 (define (get-user-variable UVAR)
@@ -432,48 +470,6 @@
 
   ; Reset the state
   (State ghost-curr-proc (Concept "Default State")))
-
-; ----------
-(define-public (ghost-update-rule-strength RULENAME VALUE)
-"
-  Update the TruthValue strength of the rule with alias RULENAME to VALUE.
-"
-  ; Get the action of the rule with alias RULENAME, and then
-  ; find all the rules that also contains this same action
-  ; TODO: Better if the label the action instead of the rule?
-  (define rules (get-related-psi-rules (psi-get-action
-    (car (cog-chase-link 'ListLink 'ImplicationLink RULENAME)))))
-
-  ; Get the value
-  (define val (cog-number VALUE))
-
-  ; Update the TVs
-  (for-each
-    (lambda (rule)
-      (cog-set-tv! rule (cog-new-stv val (cog-stv-confidence rule))))
-    rules)
-
-  ; Return an atom
-  (True))
-
-; ----------
-(define-public (ghost-record-executed-rule RULENAME)
-"
-  ghost-record-executed-rule RULENAME
-
-  Keep a record of which rule is triggered and when.
-  This information is used during action selection.
-"
-  (Evaluation ghost-rule-executed (List RULENAME))
-
-  (cog-set-value!
-    (get-rule-from-label (cog-name RULENAME))
-    ghost-time-last-executed
-    (FloatValue (current-time)))
-
-  ; Return an atom
-  (True)
-)
 
 ; ----------
 (define (compare-equal LV RV)
